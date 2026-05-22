@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JB Admin | Sales Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-900">
+    <div class="max-w-5xl mx-auto py-12 px-4">
+        <h1 class="text-3xl font-bold mb-8 text-black">JB Sales Dashboard</h1>
+        <div class="grid grid-cols-2 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h3 class="text-gray-500 text-sm font-medium uppercase tracking-wide">Total Revenue</h3>
+                <p id="total-revenue" class="text-4xl font-bold mt-2">...</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <h3 class="text-gray-500 text-sm font-medium uppercase tracking-wide">Total Items Sold</h3>
+                <p id="items-sold" class="text-4xl font-bold mt-2">...</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        async function fetchDashboard() {
+            const headers = new Headers();
+            headers.set('Authorization', 'Basic ' + btoa('admin:jb_secret2026'));
+            try {
+                const response = await fetch('http://localhost:8000/api/admin/dashboard', { headers });
+                if (response.status === 401) {
+                    alert("Unauthorized. Please check credentials.");
+                    return;
+                }
+                const data = await response.json();
+                document.getElementById('total-revenue').innerText = `₹${data.total_revenue.toFixed(2)}`;
+                document.getElementById('items-sold').innerText = data.total_items_sold;
+            } catch (error) {
+                console.error("Failed to load dashboard:", error);
+            }
+        }
+        fetchDashboard();
+    </script>
+</body>
+</html>

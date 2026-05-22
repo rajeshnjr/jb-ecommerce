@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playwright Ultimate: POM, Fixtures & Advanced Concepts</title>
+    <!-- Syntax Highlighting CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 40px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        /* Tab Styles */
+        .tabs {
+            display: flex;
+            background-color: #2d2d2d;
+        }
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            background: #2d2d2d;
+            color: #ccc;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        .tab:hover {
+            background-color: #3d3d3d;
+            color: #fff;
+        }
+        .tab.active {
+            background-color: #007acc;
+            color: #fff;
+        }
+        /* Content Styles */
+        .tab-content {
+            display: none;
+            padding: 30px;
+            animation: fadeEffect 0.5s;
+        }
+        @keyframes fadeEffect {
+            from {opacity: 0;}
+            to {opacity: 1;}
+        }
+        h2 {
+            color: #1a1a1a;
+            margin-top: 0;
+        }
+        h3 {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 30px;
+            color: #2c3e50;
+        }
+        h4 {
+            color: #007acc;
+            margin-bottom: 10px;
+        }
+        pre {
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .structure {
+            background: #2d2d2d;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            white-space: pre;
+            line-height: 1.5;
+        }
+        .folder { color: #d7ba7d; font-weight: bold; }
+        .file { color: #9cdcfe; }
+        .note { background-color: #e8f4fd; border-left: 4px solid #007acc; padding: 15px; margin: 20px 0; font-size: 0.95em; }
+        .divider { height: 2px; background: #eee; margin: 40px 0; }
+        .qa-card { background: #fafafa; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="tabs">
+        <button class="tab" onclick="openTab(event, 'PlaywrightTS')" id="defaultOpen">🔷 Playwright TS (POM + Advanced)</button>
+        <button class="tab" onclick="openTab(event, 'SeleniumPytest')">🐍 Selenium + Pytest</button>
+    </div>
+
+    <!-- PLAYWRIGHT TYPESCRIPT TAB -->
+    <div id="PlaywrightTS" class="tab-content">
+        <h2>Playwright TypeScript: POM & Custom Fixtures</h2>
+        <div class="note">
+            Using Playwright's <strong>Custom Fixtures</strong> to automatically initialize our Page Object Model in every test context.
+        </div>
+        
+        <h3>1. fixtures/page-fixtures.ts</h3>
+        <pre><code class="language-typescript">import { test as baseTest } from '@playwright/test';
+import { GoogleSearchPage } from '../pages/GoogleSearchPage';
+
+type MyFixtures = { googlePage: GoogleSearchPage; };
+
+export const test = baseTest.extend<MyFixtures>({
+  googlePage: async ({ page }, use) => {
+    const googleSearch = new GoogleSearchPage(page);
+    await googleSearch.navigate();
+    await use(googleSearch); // Yields POM to test
+  },
+});
+export { expect } from '@playwright/test';
+</code></pre>
+
+        <h3>2. tests/search-validation.spec.ts</h3>
+        <pre><code class="language-typescript">import { test, expect } from '../fixtures/page-fixtures';
+
+test('Test Case 1: Search for Facebook', async ({ googlePage }) => {
+  await googlePage.searchFor('Facebook');
+  await expect(googlePage.page).toHaveTitle(/Facebook/i);
+});
+</code></pre>
+
+        <div class="divider"></div>
+
+        <h2>Advanced Playwright Concepts & Troubleshooting</h2>
+        
+        <div class="qa-card">
+            <h4>1. Where do we use Promises in Playwright?</h4>
+            <p>Because Playwright operates via a WebSocket connection to the browser out-of-process, <strong>every API call is asynchronous and returns a Promise</strong>. You use promises in three main ways:</p>
+            <ul>
+                <li><strong>Sequential Actions:</strong> Using <code>await</code> on locators (e.g., <code>await page.click('#btn')</code>).</li>
+                <li><strong>Handling Race Conditions:</strong> Storing a promise <em>before</em> triggering an action to wait for a network response or new tab.</li>
+                <li><strong>Parallel Execution:</strong> Using <code>Promise.all()</code> to run multiple independent checks concurrently.</li>
+            </ul>
+            <pre><code class="language-typescript">// Example: Awaiting a network response triggered by a click
+const responsePromise = page.waitForResponse('**/api/v1/users');
+await page.getByRole('button', { name: 'Submit' }).click(); // Action
+const response = await responsePromise; // Resolve Promise
+</code></pre>
+        </div>
+
+        <div class="qa-card">
+            <h4>2. How do we test with specific browsers (Channels)?</h4>
+            <p>By default, Playwright uses open-source Chromium, Firefox, and WebKit binaries. If you need to test against branded, installed browsers like Google Chrome or Microsoft Edge, you use the <code>channel</code> property in your <code>playwright.config.ts</code>.</p>
+            <pre><code class="language-typescript">// playwright.config.ts
+export default defineConfig({
+  projects: [
+    {
+      name: 'Google Chrome',
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: 'chrome', // Uses branded Google Chrome
+      },
+    },
+    {
+      name: 'Microsoft Edge',
+      use: {
+        ...devices['Desktop Edge'],
+        channel: 'msedge', // Uses branded Microsoft Edge
+      },
+    },
+  ],
+});
+</code></pre>
+        </div>
+
+        <div class="qa-card">
+            <h4>3. If a test is working locally but not in CI, what do we check?</h4>
+            <p>This is the most common QA challenge. If it works locally but fails in CI (Jenkins, GitHub Actions, GitLab), check these top culprits:</p>
+            <ol>
+                <li><strong>Missing Dependencies:</strong> CI machines are blank slates. Ensure you are running <code>npx playwright install --with-deps</code> in your CI pipeline.</li>
+                <li><strong>Headless Mode Quirks:</strong> Tests run headed locally but headless in CI. Headless browsers don't render visually, which can break viewport-based locators. Test locally in headless mode (<code>npx playwright test --headless</code>) to replicate.</li>
+                <li><strong>Speed & Networking:</strong> CI machines are often slower or share network resources. Remove hardcoded <code>page.waitForTimeout()</code> and replace them with dynamic waits like <code>page.waitForResponse()</code> or <code>expect(locator).toBeVisible()</code>.</li>
+                <li><strong>Viewport Size:</strong> CI defaults to 1280x720. If your app becomes responsive/mobile at that size, buttons might be hidden behind hamburger menus. Set a fixed viewport in your config.</li>
+                <li><strong>Debugging:</strong> Always configure your config to retain traces on failure: <code>trace: 'retain-on-failure'</code>. View the CI trace to see exactly what the browser saw.</li>
+            </ol>
+        </div>
+
+        <div class="qa-card">
+            <h4>4. Custom line to retrieve the latest release Playwright version</h4>
+            <p>You can fetch the absolute latest version available on the NPM registry using standard node commands in your terminal:</p>
+            <pre><code class="language-bash"># Get the latest version number from NPM
+npm show @playwright/test version
+
+# Check the exact version currently installed in your local project
+npx playwright --version
+</code></pre>
+        </div>
+
+        <div class="qa-card">
+            <h4>5. How do we test Accessibility (a11y) with Playwright?</h4>
+            <p>Playwright officially integrates with Axe (the industry standard accessibility engine) via the <code>@axe-core/playwright</code> package.</p>
+            <pre><code class="language-bash">npm install -D @axe-core/playwright</code></pre>
+            <pre><code class="language-typescript">import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+
+test('Accessibility check on Dashboard', async ({ page }) => {
+  await page.goto('https://example.com/dashboard');
+
+  // Run the Axe accessibility analysis on the current page
+  const accessibilityScanResults = await new AxeBuilder({ page }).analyze();
+
+  // Assert that there are no violations
+  expect(accessibilityScanResults.violations).toEqual([]);
+});
+</code></pre>
+        </div>
+
+    </div>
+
+    <!-- SELENIUM PYTEST TAB (Kept brief as requested) -->
+    <div id="SeleniumPytest" class="tab-content">
+        <h2>Selenium + Pytest: Reusing conftest.py Fixtures</h2>
+        <div class="note">
+            Using Pytest's <code>yield</code> keyword to initialize the Selenium WebDriver and Page Object, pass it to the test, and tear it down automatically.
+        </div>
+
+        <h3>conftest.py</h3>
+        <pre><code class="language-python">import pytest
+from selenium import webdriver
+from pages.google_page import GooglePage
+
+@pytest.fixture(scope="function")
+def google_driver():
+    driver = webdriver.Chrome()
+    google_search_page = GooglePage(driver)
+    google_search_page.navigate()
+    
+    yield google_search_page
+    
+    driver.quit()
+</code></pre>
+    </div>
+</div>
+
+<!-- Scripts for Tabs and Syntax Highlighting -->
+<script>
+    function openTab(evt, tabName) {
+        let i, tabcontent, tablinks;
+        
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        
+        tablinks = document.getElementsByClassName("tab");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+        
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.className += " active";
+    }
+
+    document.getElementById("defaultOpen").click();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+
+</body>
+</html>
